@@ -4,12 +4,32 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use Illuminate\Http\Request;
-
+use App\Exports\TasksExport;
+use Maatwebsite\Excel\Facades\Excel;
 class TaskController extends Controller
 {
-    public function index()
+//     public function index()
+// {
+//     $tasks = Task::all();
+//     return view('tasks.index', compact('tasks'));
+// }
+public function index(Request $request)
 {
-    $tasks = Task::all();
+    $query = Task::query();
+
+    // Search by task name
+    if ($request->filled('search')) {
+        $query->where('name', 'like', '%' . $request->search . '%');
+    }
+
+    // Filter by completion status
+    if ($request->filled('completed')) {
+        $query->where('completed', $request->completed);
+    }
+
+    // Get tasks with pagination
+    $tasks = $query->paginate(10); // Adjust the number of tasks per page
+
     return view('tasks.index', compact('tasks'));
 }
 
@@ -59,6 +79,26 @@ public function destroy($id)
 
     return redirect()->route('tasks.index')
         ->with('success', 'Task deleted successfully.');
+}
+
+// Export method
+public function export()
+{
+    return Excel::download(new TasksExport, 'tasks.xlsx');
+}
+
+public function search(Request $request)
+{
+    // Get search query
+    $search = $request->input('query');
+
+    // Fetch tasks that match the search query (name or description)
+    $tasks = Task::where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('description', 'LIKE', "%{$search}%")
+                  ->get();
+
+    // Return a partial view containing the filtered tasks
+    return view('tasks.partials.task-list', compact('tasks'))->render();
 }
 
     //
